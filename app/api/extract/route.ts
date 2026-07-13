@@ -1,13 +1,18 @@
+import OpenAI from "openai";
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
   try {
     const { imageBase64 } = await req.json();
-    const apiKey = process.env.GEMINI_API_KEY;
+    
+    // Lấy chìa khóa OpenAI từ Vercel
+    const apiKey = process.env.OPENAI_API_KEY;
 
     if (!apiKey) {
-      return NextResponse.json({ success: false, error: "Thiếu API Key trong Vercel" }, { status: 500 });
+      return NextResponse.json({ success: false, error: "Thiếu OPENAI_API_KEY trong Vercel" }, { status: 500 });
     }
+
+    const openai = new OpenAI({ apiKey: apiKey });
 
     const prompt = `Bạn là kế toán trưởng chuyên nghiệp. Hãy đọc hóa đơn hải sản này và bóc tách dữ liệu.
       YÊU CẦU BẮT BUỘC:
@@ -20,34 +25,35 @@ export async function POST(req: Request) {
          - "DonGia": (Number)
          - "ThanhTien": (Number)`;
 
-    const base64Data = imageBase64.split(",")[1];
-
-    // CHỐT HẠ: Dùng mã phiên bản cố định (001) để không bao giờ bị Google báo lỗi 404
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-001:generateContent?key=${apiKey}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: "image/jpeg", data: base64Data } }] }]
-      }),
+    // Bắn dữ liệu sang máy chủ OpenAI (dùng model gpt-4o mạnh nhất)
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: prompt },
+            {
+              type: "image_url",
+              image_url: {
+                url: imageBase64, // Dùng thẳng chuỗi base64 có sẵn
+              },
+            },
+          ],
+        },
+      ],
     });
 
-    const data = await response.json();
-
-    if (!response.ok) {
-      console.error("Chi tiết lỗi từ Google:", data);
-      return NextResponse.json({ success: false, error: data.error?.message || "Lỗi kết nối Google API" }, { status: 500 });
-    }
-
-    const responseText = data.candidates[0].content.parts[0].text;
+    const responseText = response.choices[0].message.content || "[]";
+    
+    // Dọn dẹp dữ liệu rác nếu AI trả về dư thừa
     const cleanedText = responseText.replace(/```json/gi, "").replace(/```/g, "").trim();
     const resultJson = JSON.parse(cleanedText);
 
     return NextResponse.json({ success: true, data: resultJson });
 
   } catch (error: any) {
-    console.error("Lỗi hệ thống nội bộ:", error.message);
-    return NextResponse.json({ success: false, error: "Lỗi hệ thống hoặc định dạng trả về" }, { status: 500 });
+    console.error("Lỗi từ OpenAI:", error.message);
+    return NextResponse.json({ success: false, error: "Không thể xử lý hóa đơn. Vui lòng kiểm tra lại ảnh hoặc API Key." }, { status: 500 });
   }
 }
