@@ -10,21 +10,20 @@ export async function POST(req: Request) {
     }
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-pro-vision" });
+    // Chuẩn hóa gọi đích danh phiên bản Flash mới nhất
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     const prompt = `
-      Bạn là kế toán trưởng chuyên nghiệp. Hãy đọc hóa đơn, phiếu xuất hàng hải sản trong bức ảnh này và bóc tách dữ liệu.
+      Bạn là kế toán trưởng chuyên nghiệp. Hãy đọc hóa đơn hải sản này và bóc tách dữ liệu.
       YÊU CẦU BẮT BUỘC:
-      1. Bỏ qua header (tên cty, địa chỉ...). Chỉ lấy dữ liệu trong bảng danh sách hàng hóa.
-      2. Nếu hóa đơn có các cột phức tạp như "Xuất bán", "Thực nhận", "Trả về" -> Chỉ lấy số lượng/trọng lượng chốt cuối cùng dùng để nhân với Đơn giá ra Thành tiền.
-      3. Kết quả trả về PHẢI là một mảng JSON thuần túy (không bọc trong \`\`\`json ... \`\`\`), mỗi object đại diện 1 dòng hàng hóa, gồm các key sau (ghi đúng tên key):
-         - "TenHang": (String) Tên hải sản (VD: Tôm alaska Chix, Cua King Vàng, Sò điệp...)
-         - "SoLuong": (Number) Số lượng con/thùng (nếu không có để 0)
-         - "TrongLuong": (Number) Khối lượng Kg thực tế tính tiền (nếu không có để 0)
-         - "DonGia": (Number) Giá tiền một đơn vị
-         - "ThanhTien": (Number) Tổng tiền của mặt hàng đó
-      
-      Kiểm tra chéo: (SoLuong hoặc TrongLuong) * DonGia phải bằng hoặc xấp xỉ ThanhTien. Nếu dòng nào là tổng cộng cuối bill thì bỏ qua không đưa vào mảng.
+      1. Bỏ qua header. Chỉ lấy dữ liệu bảng danh sách hàng hóa.
+      2. Nếu có các cột phức tạp như "Xuất bán", "Thực nhận", "Trả về" -> Chỉ lấy số lượng/trọng lượng chốt cuối cùng dùng để tính tiền.
+      3. Kết quả PHẢI là một mảng JSON thuần túy (không bọc trong \`\`\`json ... \`\`\`), mỗi object gồm:
+         - "TenHang": (String) Tên hải sản
+         - "SoLuong": (Number)
+         - "TrongLuong": (Number)
+         - "DonGia": (Number)
+         - "ThanhTien": (Number)
     `;
 
     const result = await model.generateContent([
