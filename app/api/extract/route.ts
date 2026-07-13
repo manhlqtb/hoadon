@@ -20,41 +20,26 @@ export async function POST(req: Request) {
          - "DonGia": (Number)
          - "ThanhTien": (Number)`;
 
-    // Xử lý chuỗi Base64
     const base64Data = imageBase64.split(",")[1];
 
-    // Bắn thẳng API gốc của Google, dùng model 1.5 Flash chuẩn nhất hiện tại
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+    // Đã thay đổi chính xác tên mã thành gemini-1.5-flash-latest theo bắt buộc của Google
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              { text: prompt },
-              {
-                inline_data: {
-                  mime_type: "image/jpeg",
-                  data: base64Data,
-                },
-              },
-            ],
-          },
-        ],
+        contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: "image/jpeg", data: base64Data } }] }]
       }),
     });
 
     const data = await response.json();
 
-    // Bắt lỗi nếu API key của anh có vấn đề thực sự (Hết hạn/Bị khóa)
     if (!response.ok) {
       console.error("Chi tiết lỗi từ Google:", data);
       return NextResponse.json({ success: false, error: data.error?.message || "Lỗi kết nối Google API" }, { status: 500 });
     }
 
-    // Lọc và trả kết quả Excel
     const responseText = data.candidates[0].content.parts[0].text;
     const cleanedText = responseText.replace(/```json/gi, "").replace(/```/g, "").trim();
     const resultJson = JSON.parse(cleanedText);
