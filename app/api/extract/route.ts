@@ -22,8 +22,8 @@ export async function POST(req: Request) {
 
     const base64Data = imageBase64.split(",")[1];
 
-    // Đã thay đổi chính xác tên mã thành gemini-1.5-flash-latest theo bắt buộc của Google
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
+    // CHỐT HẠ: Dùng mã phiên bản cố định (001) để không bao giờ bị Google báo lỗi 404
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-001:generateContent?key=${apiKey}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
